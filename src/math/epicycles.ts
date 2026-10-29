@@ -16,3 +16,16 @@ export function chain(terms: Term[], t: number): Point[] {
 
     return points;
 }
+
+export function tipAt(terms: Term[], t: number): Point {
+    let x = 0;
+    let y = 0;
+
+    for ( const { freq, amp, phase } of terms) {
+        const angle = freq * t + phase;
+        x += amp * Math.cos(angle);
+        y += amp * Math.sin(angle);
+    }
+    return { x, y };
+
+}

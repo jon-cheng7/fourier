@@ -1,0 +1,51 @@
+// Traced wave: tip height over the last full cycle
+
+import type { Term} from '../math/types';
+import { tipAt } from '../math/epicycles'; 
+import { toScreen, type Viewport } from './viewport';
+
+const TAU = Math.PI * 2;
+const SAMPLES = 400;
+
+export interface Graph {
+    left: number;
+    width: number;
+}
+
+export function drawWave(
+    ctx: CanvasRenderingContext2D,
+    terms: Term[],
+    t: number,
+    view: Viewport,
+    graph: Graph,
+): void {
+    const tip = toScreen(tipAt(terms, t), view);
+    const axisY = view.origin.y;
+
+    // axis
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(graph.left, axisY);
+    ctx.lineTo(graph.left + graph.width, axisY);
+    ctx.stroke();
+
+    // connector from tip to graph
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(graph.left, tip.y);
+    ctx.stroke();
+
+    // wave
+    ctx.strokeStyle = '#c5fb45';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i <= SAMPLES; i++) {
+        const f = i / SAMPLES;
+        const p = tipAt(terms, t - f * TAU);
+        const y = toScreen({ x: 0, y: p.y }, view).y;
+        ctx.lineTo(graph.left + f * graph.width, y);
+    }
+    ctx.stroke();
+}
