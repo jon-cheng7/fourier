@@ -2,26 +2,26 @@
 
 html,
 body {
-  margin: 0;
-  height: 100%;
-  overflow: hidden;
-  background-color: #0a0a0a;
-  color: #e5e5e5;
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0a0a0a;
+    color: #e5e5e5;
+    font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* Positioning context for overlay controls */
 #app {
-  position: relative;
-  width: 100%;
-  height: 100%;
+    position: relative;
+    width: 100%;
+    height: 100%;
 }
 
 /* Block, not inline: avoids the baseline gap below the canvas */
 canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none; /* freehand input later: stop touch scroll/zoom */
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none; /* freehand input later: stop touch scroll/zoom */
 }
