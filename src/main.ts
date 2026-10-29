@@ -9,6 +9,7 @@ import { chain } from './math/epicycles';
 import type { Term } from './math/types';
 import { drawEpicycles } from './views/epicycles';
 import type { Viewport } from './views/viewport';
+import { drawWave, type Graph } from './views/wave';
 
 const TAU = Math.PI * 2;
 
@@ -44,6 +45,9 @@ function draw() {
         scale: Math.min(width * 0.12, height * 0.28),
     };
 
+    const graph: Graph = { left: width * 0.5, width: width * 0.45 };
+
+    drawWave(ctx, terms, t, view, graph);
     drawEpicycles(ctx, chain(terms, t), view);
 }
 
