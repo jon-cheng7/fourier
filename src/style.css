@@ -25,3 +25,38 @@ canvas {
     height: 100%;
     touch-action: none; /* freehand input later: stop touch scroll/zoom */
 }
+
+.controls {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid #222;
+    border-radius: 8px;
+    background: rgba(10, 10, 10, 0.8);
+    font-size: 12px;
+    user-select: none;
+}
+
+.slider {
+    display: grid;
+    grid-template-columns: 48px 160px 24px;
+    align-items: center;
+    gap: 10px;
+    color: #888;
+}
+
+.slider output {
+    color: #e5e5e5;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.slider input {
+    margin: 0;
+    accent-color: #c5fb45;
+    cursor: pointer;
+}
