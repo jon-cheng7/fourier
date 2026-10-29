@@ -1,7 +1,7 @@
 // Traced wave: tip height over the last full cycle
 
-import type { Term} from '../math/types';
-import { tipAt } from '../math/epicycles'; 
+import type { Term } from '../math/types';
+import { tipAt } from '../math/epicycles';
 import { toScreen, type Viewport } from './viewport';
 
 const TAU = Math.PI * 2;
