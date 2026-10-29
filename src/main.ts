@@ -1,8 +1,14 @@
-// Entry point. Wires stage, loop and drawing.
+// Entry point. Wires stage, loop, views and controls.
 
 import './style.css';
 import { createStage } from './stage';
 import { createLoop } from './loop';
+import { createPanel, addSlider } from './controls';
+import { squareWave } from './math/series';
+import { chain } from './math/epicycles';
+import type { Term } from './math/types';
+import { drawEpicycles } from './views/epicycles';
+import type { Viewport } from './views/viewport';
 
 const TAU = Math.PI * 2;
 
@@ -12,35 +18,33 @@ if (!app) throw new Error('#app not found');
 const stage = createStage(app);
 const { ctx } = stage;
 
+let count = 5;
+let terms: Term[] = squareWave(count);
 let t = 0;
 const speed = TAU / 8; // rad/s
 
-// Placeholder orbit
+const panel = createPanel(app);
+addSlider(panel, {
+    label: 'Terms',
+    min: 1,
+    max: 50,
+    value: count,
+    onInput: (n) => {
+        count = n;
+        terms = squareWave(count);
+    },
+});
+
 function draw() {
     const { width, height } = stage;
     ctx.clearRect(0, 0, width, height);
 
-    ctx.save();
-    ctx.translate(width / 2, height / 2);
+    const view: Viewport = {
+        origin: { x: width * 0.25, y: height / 2 },
+        scale: Math.min(width * 0.12, height * 0.28),
+    };
 
-    const r = 0.35 * Math.min(width, height);
-    const x = r * Math.cos(t);
-    const y = -r * Math.sin(t); // canvas y points down
-
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, TAU);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-
-    ctx.fillStyle = '#c5fb45';
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, TAU);
-    ctx.fill();
-
-    ctx.restore();
+    drawEpicycles(ctx, chain(terms, t), view);
 }
 
 createLoop((dt) => {
