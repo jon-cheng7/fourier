@@ -1,5 +1,4 @@
-/* Global styles. Full-bleed dark page; #app is the box the stage measures.
-   Runs inside an iframe on joncheng.ca, so size from #app, never the window. */
+/* Global styles */
 
 html,
 body {
@@ -12,7 +11,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Positioning context for overlay controls (M6) */
+/* Positioning context for overlay controls */
 #app {
   position: relative;
   width: 100%;
