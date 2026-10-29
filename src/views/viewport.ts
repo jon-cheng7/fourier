@@ -10,6 +10,6 @@ export interface Viewport {
 export function toScreen(p: Point, view: Viewport): Point {
     return {
         x: view.origin.x + p.x * view.scale,
-        y: view.origin.y + p.y * view.scale,
+        y: view.origin.y - p.y * view.scale,
     };
 }
