@@ -77,7 +77,7 @@ export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
 export function addChoice<T extends string>(
     panel: HTMLElement,
     opts: ChoiceOptions<T>,
-): void {
+): HTMLElement {
     const row = document.createElement('div');
     row.className = 'choice';
     row.setAttribute('role', 'radiogroup');
@@ -103,6 +103,7 @@ export function addChoice<T extends string>(
     select(opts.value);
 
     panel.append(row);
+    return row;
 }
 
 export function addTextBox(panel: HTMLElement, opts: TextBoxOptions): TextBox {
