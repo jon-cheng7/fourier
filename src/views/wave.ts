@@ -24,7 +24,7 @@ export function drawWave(
 
     // axis
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.moveTo(graph.left, axisY);
     ctx.lineTo(graph.left + graph.width, axisY);
@@ -41,7 +41,7 @@ export function drawWave(
     const from = Math.max(graph.left, 0);
     const to = Math.min(graph.left + graph.width, ctx.canvas.clientWidth);
     ctx.strokeStyle = '#c5fb45';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     for (let x = from; x <= to + SAMPLE_PX; x += SAMPLE_PX) {
         const f = Math.min((x - graph.left) / graph.width, 1);

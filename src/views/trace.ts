@@ -80,7 +80,7 @@ export function createTrace(terms: Term[], path: Point[]): Trace {
                 ctx.stroke();
             };
 
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
 

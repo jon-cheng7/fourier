@@ -14,11 +14,11 @@ export function drawEpicycles(
 ): void {
     const screen = points.map((p) => toScreen(p, view));
 
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.25;
 
     // circles
     if (showCircles) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.beginPath();
         for (let i = 0; i < screen.length - 1; i++) {
             const centre = screen[i];
@@ -45,11 +45,11 @@ export function drawEpicycles(
         const centre = screen[i];
         const next = screen[i + 1];
         const r = Math.hypot(next.x - centre.x, next.y - centre.y);
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(centre.x, centre.y, r, 0, TAU);
         ctx.stroke();
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(centre.x, centre.y);
         ctx.lineTo(next.x, next.y);

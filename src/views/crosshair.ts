@@ -9,8 +9,8 @@ export function drawCrosshair(
 ): void {
     const pen = { x: xTip.x, y: yTip.y };
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.moveTo(xTip.x, xTip.y);
     ctx.lineTo(pen.x, pen.y);
