@@ -1,13 +1,13 @@
 // Built-in closed paths for the DFT
 
-import type { Point } from "./types";
+import type { Point } from './types';
 
 const TAU = Math.PI * 2;
 
 export function heart(count: number): Point[] {
     return Array.from({ length: count }, (_, i) => {
         const s = (i / count) * TAU;
-        return  {
+        return {
             x: Math.sin(s) ** 3,
             y:
                 (13 * Math.cos(s) -
