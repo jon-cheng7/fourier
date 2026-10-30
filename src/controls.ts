@@ -18,6 +18,18 @@ export interface ChoiceOptions<T extends string> {
     onChange: (value: T) => void;
 }
 
+export interface TextBoxOptions {
+    value: string;
+    placeholder: string;
+    button: string;
+    onSubmit: (text: string) => void;
+}
+
+export interface TextBox {
+    row: HTMLElement;
+    setError(message: string): void;
+}
+
 export interface ToggleOptions {
     label: string;
     value: boolean;
@@ -91,6 +103,35 @@ export function addChoice<T extends string>(
     select(opts.value);
 
     panel.append(row);
+}
+
+export function addTextBox(panel: HTMLElement, opts: TextBoxOptions): TextBox {
+    const row = document.createElement('div');
+    row.className = 'textbox';
+
+    const area = document.createElement('textarea');
+    area.value = opts.value;
+    area.placeholder = opts.placeholder;
+    area.rows = 3;
+    area.spellcheck = false;
+
+    const error = document.createElement('p');
+    error.className = 'error';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = opts.button;
+    button.addEventListener('click', () => opts.onSubmit(area.value));
+
+    row.append(area, error, button);
+    panel.append(row);
+
+    return {
+        row,
+        setError: (message) => {
+            error.textContent = message;
+        },
+    };
 }
 
 export function addToggle(panel: HTMLElement, opts: ToggleOptions): void {

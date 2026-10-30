@@ -26,6 +26,25 @@ canvas {
     touch-action: none; /* freehand input later: stop touch scroll/zoom */
 }
 
+.drawing canvas {
+    cursor: crosshair;
+}
+
+.hint {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #555;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+}
+
+.hint[hidden] {
+    display: none;
+}
+
 .controls {
     position: absolute;
     left: 16px;
@@ -74,6 +93,7 @@ canvas {
     background: transparent;
     color: #888;
     font: inherit;
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -84,6 +104,60 @@ canvas {
 .choice button[aria-checked='true'] {
     border-color: #c5fb45;
     color: #c5fb45;
+}
+
+.textbox {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.textbox[hidden] {
+    display: none;
+}
+
+.textbox textarea {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #222;
+    border-radius: 5px;
+    background: #050505;
+    color: #e5e5e5;
+    font:
+        11px/1.4 ui-monospace,
+        Consolas,
+        monospace;
+    resize: vertical;
+}
+
+.textbox textarea:focus {
+    outline: none;
+    border-color: #555;
+}
+
+.textbox .error {
+    margin: 0;
+    color: #ff6b6b;
+}
+
+.textbox .error:empty {
+    display: none;
+}
+
+.textbox button {
+    align-self: flex-start;
+    padding: 5px 10px;
+    border: 1px solid #c5fb45;
+    border-radius: 5px;
+    background: transparent;
+    color: #c5fb45;
+    font: inherit;
+    cursor: pointer;
+}
+
+.textbox button:hover {
+    background: rgba(197, 251, 69, 0.1);
 }
 
 .toggle {
