@@ -37,3 +37,19 @@ export function tracePath(terms: Term[], samples: number): Point[] {
         tipAt(terms, (i / samples) * TAU),
     );
 }
+
+// Each circle → a mirrored half-size pair. x: vertical parts cancel. y: horizontal parts cancel
+export function splitTerms(terms: Term[]): { x: Term[]; y: Term[] } {
+    const x: Term[] = [];
+    const y: Term[] = [];
+
+    for (const { freq, amp, phase } of terms) {
+        const half = amp / 2;
+        x.push({ freq, amp: half, phase });
+        x.push({ freq: -freq, amp: half, phase: -phase });
+        y.push({ freq, amp: half, phase });
+        y.push({ freq: -freq, amp: half, phase: Math.PI - phase });
+    }
+
+    return { x, y };
+}

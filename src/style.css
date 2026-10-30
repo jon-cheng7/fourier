@@ -85,6 +85,10 @@ canvas {
     gap: 4px;
 }
 
+.choice[hidden] {
+    display: none;
+}
+
 .choice button {
     flex: 1;
     padding: 5px 10px;

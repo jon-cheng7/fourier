@@ -11,20 +11,22 @@ import {
     addTextBox,
 } from './controls';
 import { squareWave } from './math/series';
-import { chain, tracePath } from './math/epicycles';
+import { chain, tracePath, splitTerms } from './math/epicycles';
 import { dft, byAmplitude } from './math/dft';
 import { heart } from './math/shapes';
 import { resample, normalize } from './math/path';
 import type { Point, Term } from './math/types';
 import { drawEpicycles } from './views/epicycles';
-import { fromScreen, type Viewport } from './views/viewport';
+import { fromScreen, toScreen, type Viewport } from './views/viewport';
 import { drawWave, type Graph } from './views/wave';
 import { drawTrace } from './views/trace';
+import { drawCrosshair } from './views/crosshair';
 import { createFreehand } from './input/freehand';
 import { pathData, samplePath } from './input/svg';
 
 type Mode = 'square' | 'heart' | 'draw' | 'svg';
 type ShapeMode = Exclude<Mode, 'square'>;
+type Layout = 'radial' | 'split';
 
 const TAU = Math.PI * 2;
 const SQUARE_MAX = 50;
@@ -59,13 +61,16 @@ const counts: Record<Mode, number> = {
     svg: SHAPE_POINTS,
 };
 let sorted = true;
+let layout: Layout = 'radial';
 let terms: Term[] = [];
 let trace: Point[] | null = null;
+let split: { x: Term[]; y: Term[] } | null = null;
 let t = 0;
 const speed = TAU / 8; // rad/s
 
 function updateTerms() {
     trace = null;
+    split = null;
     if (mode === 'square') {
         terms = squareWave(counts.square);
         return;
@@ -89,6 +94,21 @@ function shapeView(): Viewport {
     };
 }
 
+// Shape bottom-right, x chain above it, y chain left of it. Sharing an
+// origin x (or y) is what lines each chain's tip up with the pen
+function splitViews(): { shape: Viewport; x: Viewport; y: Viewport } {
+    const { width, height } = stage;
+    const scale = Math.min(width, height) / 5.2;
+    const gap = 2.6 * scale;
+    const cx = width / 2 + 1.35 * scale;
+    const cy = height / 2 + 1.2 * scale;
+    return {
+        shape: { origin: { x: cx, y: cy }, scale },
+        x: { origin: { x: cx, y: cy - gap }, scale },
+        y: { origin: { x: cx - gap, y: cy }, scale },
+    };
+}
+
 const freehand = createFreehand(stage.canvas, (stroke) => {
     const view = shapeView();
     const points = stroke.map((p) => fromScreen(p, view));
@@ -109,6 +129,7 @@ const setMode = (m: Mode) => {
     freehand.enabled = mode === 'draw';
     app.classList.toggle('drawing', freehand.enabled);
     svgBox.row.hidden = mode !== 'svg';
+    layoutRow.hidden = mode === 'square';
     slider.set(counts[mode], mode === 'square' ? SQUARE_MAX : SHAPE_POINTS);
     updateTerms();
 };
@@ -124,6 +145,17 @@ addChoice<Mode>(panel, {
     ],
     value: mode,
     onChange: setMode,
+});
+
+const layoutRow = addChoice<Layout>(panel, {
+    options: [
+        { value: 'radial', label: 'Radial' },
+        { value: 'split', label: 'Split x / y' },
+    ],
+    value: layout,
+    onChange: (l) => {
+        layout = l;
+    },
 });
 
 const svgBox = addTextBox(panel, {
@@ -212,9 +244,26 @@ function draw() {
     // Lazily, so a slider drag recomputes at most once per frame
     trace ??= tracePath(terms, traceSamples());
 
-    const view = shapeView();
-    drawTrace(ctx, trace, view);
-    drawEpicycles(ctx, chain(terms, t), view);
+    if (layout === 'radial') {
+        const view = shapeView();
+        drawTrace(ctx, trace, view);
+        drawEpicycles(ctx, chain(terms, t), view);
+        return;
+    }
+
+    split ??= splitTerms(terms);
+    const views = splitViews();
+    const xChain = chain(split.x, t);
+    const yChain = chain(split.y, t);
+
+    drawTrace(ctx, trace, views.shape);
+    drawEpicycles(ctx, xChain, views.x);
+    drawEpicycles(ctx, yChain, views.y);
+    drawCrosshair(
+        ctx,
+        toScreen(xChain[xChain.length - 1], views.x),
+        toScreen(yChain[yChain.length - 1], views.y),
+    );
 }
 
 createLoop((dt) => {
