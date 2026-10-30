@@ -11,7 +11,7 @@ import {
     addTextBox,
 } from './controls';
 import { squareWave } from './math/series';
-import { chain } from './math/epicycles';
+import { chain, tracePath } from './math/epicycles';
 import { dft, byAmplitude } from './math/dft';
 import { heart } from './math/shapes';
 import { resample, normalize } from './math/path';
@@ -28,7 +28,8 @@ type ShapeMode = Exclude<Mode, 'square'>;
 
 const TAU = Math.PI * 2;
 const SQUARE_MAX = 50;
-const SHAPE_POINTS = 200;
+const SHAPE_POINTS = 1024;
+const MIN_TRACE_SAMPLES = 600;
 const EXAMPLE_SVG =
     'M 20 50 C 40 20 75 20 90 50 C 75 80 40 80 20 50 L 5 35 L 8 50 L 5 65 Z';
 
@@ -59,16 +60,25 @@ const counts: Record<Mode, number> = {
 };
 let sorted = true;
 let terms: Term[] = [];
+let trace: Point[] | null = null;
 let t = 0;
 const speed = TAU / 8; // rad/s
 
 function updateTerms() {
+    trace = null;
     if (mode === 'square') {
         terms = squareWave(counts.square);
         return;
     }
     const picked = shapeTerms[mode].slice(0, counts[mode]);
     terms = sorted ? picked : [...picked].sort((a, b) => a.freq - b.freq);
+}
+
+// 4× the highest freq keeps fast circles smooth, not just un-aliased
+function traceSamples(): number {
+    let maxFreq = 0;
+    for (const { freq } of terms) maxFreq = Math.max(maxFreq, Math.abs(freq));
+    return Math.max(MIN_TRACE_SAMPLES, 4 * maxFreq);
 }
 
 function shapeView(): Viewport {
@@ -199,8 +209,11 @@ function draw() {
     }
     if (terms.length === 0) return;
 
+    // Lazily, so a slider drag recomputes at most once per frame
+    trace ??= tracePath(terms, traceSamples());
+
     const view = shapeView();
-    drawTrace(ctx, terms, t, view);
+    drawTrace(ctx, trace, view);
     drawEpicycles(ctx, chain(terms, t), view);
 }
 
