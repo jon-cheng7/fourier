@@ -12,6 +12,24 @@ body {
     cursor: default; /* the site hides its own cursor over the iframe */
 }
 
+/* Faint blueprint grid: major lines every 5 minor cells, centred on the page.
+   The canvas is transparent, so this shows through behind the drawing */
+body {
+    --grid-minor: 24px;
+    --grid-major: calc(var(--grid-minor) * 5);
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size:
+        var(--grid-major) var(--grid-major),
+        var(--grid-major) var(--grid-major),
+        var(--grid-minor) var(--grid-minor),
+        var(--grid-minor) var(--grid-minor);
+    background-position: center;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
