@@ -26,6 +26,25 @@ canvas {
     touch-action: none; /* freehand input later: stop touch scroll/zoom */
 }
 
+.drawing canvas {
+    cursor: crosshair;
+}
+
+.hint {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #555;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+}
+
+.hint[hidden] {
+    display: none;
+}
+
 .controls {
     position: absolute;
     left: 16px;
@@ -74,6 +93,7 @@ canvas {
     background: transparent;
     color: #888;
     font: inherit;
+    white-space: nowrap;
     cursor: pointer;
 }
 
