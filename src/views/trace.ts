@@ -1,24 +1,21 @@
-// Path traced by the pen tip over the last full cycle
+// Closed path traced by the pen tip. Same every frame, so computed once per term set
 
-import type { Term } from '../math/types';
-import { tipAt } from '../math/epicycles';
+import type { Point } from '../math/types';
 import { toScreen, type Viewport } from './viewport';
-
-const TAU = Math.PI * 2;
-const SAMPLES = 600;
 
 export function drawTrace(
     ctx: CanvasRenderingContext2D,
-    terms: Term[],
-    t: number,
+    path: Point[],
     view: Viewport,
 ): void {
     ctx.strokeStyle = '#c5fb45';
     ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    for (let i = 0; i <= SAMPLES; i++) {
-        const p = toScreen(tipAt(terms, t - (i / SAMPLES) * TAU), view);
-        ctx.lineTo(p.x, p.y);
+    for (const p of path) {
+        const s = toScreen(p, view);
+        ctx.lineTo(s.x, s.y);
     }
+    ctx.closePath();
     ctx.stroke();
 }
