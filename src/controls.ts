@@ -8,6 +8,22 @@ export interface SliderOptions {
     onInput: (value: number) => void;
 }
 
+export interface Slider {
+    set(value: number, max: number): void;
+}
+
+export interface ChoiceOptions<T extends string> {
+    options: { value: T; label: string }[];
+    value: T;
+    onChange: (value: T) => void;
+}
+
+export interface ToggleOptions {
+    label: string;
+    value: boolean;
+    onChange: (value: boolean) => void;
+}
+
 export function createPanel(container: HTMLElement): HTMLElement {
     const panel = document.createElement('div');
     panel.className = 'controls';
@@ -15,7 +31,7 @@ export function createPanel(container: HTMLElement): HTMLElement {
     return panel;
 }
 
-export function addSlider(panel: HTMLElement, opts: SliderOptions): void {
+export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
     const row = document.createElement('label');
     row.className = 'slider';
 
@@ -25,12 +41,16 @@ export function addSlider(panel: HTMLElement, opts: SliderOptions): void {
     const input = document.createElement('input');
     input.type = 'range';
     input.min = String(opts.min);
-    input.max = String(opts.max);
     input.step = '1';
-    input.value = String(opts.value);
 
     const out = document.createElement('output');
-    out.textContent = input.value;
+
+    const set = (value: number, max: number) => {
+        input.max = String(max);
+        input.value = String(value);
+        out.textContent = input.value;
+    };
+    set(opts.value, opts.max);
 
     input.addEventListener('input', () => {
         out.textContent = input.value;
@@ -38,5 +58,53 @@ export function addSlider(panel: HTMLElement, opts: SliderOptions): void {
     });
 
     row.append(name, input, out);
+    panel.append(row);
+    return { set };
+}
+
+export function addChoice<T extends string>(
+    panel: HTMLElement,
+    opts: ChoiceOptions<T>,
+): void {
+    const row = document.createElement('div');
+    row.className = 'choice';
+    row.setAttribute('role', 'radiogroup');
+
+    const buttons = opts.options.map(({ value, label }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.setAttribute('role', 'radio');
+        button.addEventListener('click', () => {
+            select(value);
+            opts.onChange(value);
+        });
+        row.append(button);
+        return { value, button };
+    });
+
+    const select = (value: T) => {
+        for (const b of buttons) {
+            b.button.setAttribute('aria-checked', String(b.value === value));
+        }
+    };
+    select(opts.value);
+
+    panel.append(row);
+}
+
+export function addToggle(panel: HTMLElement, opts: ToggleOptions): void {
+    const row = document.createElement('label');
+    row.className = 'toggle';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = opts.value;
+    input.addEventListener('change', () => opts.onChange(input.checked));
+
+    const name = document.createElement('span');
+    name.textContent = opts.label;
+
+    row.append(input, name);
     panel.append(row);
 }
