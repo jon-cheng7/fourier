@@ -9,6 +9,7 @@ import {
     addChoice,
     addToggle,
     addTextBox,
+    addButton,
 } from './controls';
 import { squareWave } from './math/series';
 import { chain, tracePath, splitTerms } from './math/epicycles';
@@ -66,7 +67,12 @@ let terms: Term[] = [];
 let trace: Point[] | null = null;
 let split: { x: Term[]; y: Term[] } | null = null;
 let t = 0;
-const speed = TAU / 8; // rad/s
+let speedLevel = 4; // ×0.25 per step; 4 = one cycle every 8 s
+let trailPercent = 100;
+let showCircles = true;
+
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let playing = !reducedMotion.matches;
 
 function updateTerms() {
     trace = null;
@@ -134,7 +140,7 @@ const setMode = (m: Mode) => {
     updateTerms();
 };
 
-const panel = createPanel(app);
+const panel = createPanel(app, matchMedia('(max-height: 560px)').matches);
 
 addChoice<Mode>(panel, {
     options: [
@@ -185,7 +191,40 @@ const slider = addSlider(panel, {
     },
 });
 
-addToggle(panel, {
+addSlider(panel, {
+    label: 'Speed',
+    min: 1,
+    max: 12,
+    value: speedLevel,
+    format: (v) => `${v / 4}×`,
+    onInput: (v) => {
+        speedLevel = v;
+    },
+});
+
+addSlider(panel, {
+    label: 'Trail',
+    min: 5,
+    max: 100,
+    value: trailPercent,
+    format: (v) => `${v}%`,
+    onInput: (v) => {
+        trailPercent = v;
+    },
+});
+
+const actions = document.createElement('div');
+actions.className = 'row';
+panel.append(actions);
+
+const playButton = addButton(actions, '', () => setPlaying(!playing));
+
+function setPlaying(p: boolean) {
+    playing = p;
+    playButton.setLabel(playing ? 'Pause' : 'Play');
+}
+
+addToggle(actions, {
     label: 'Sort by size',
     value: sorted,
     onChange: (s) => {
@@ -194,7 +233,30 @@ addToggle(panel, {
     },
 });
 
+addToggle(actions, {
+    label: 'Circles',
+    value: showCircles,
+    onChange: (s) => {
+        showCircles = s;
+    },
+});
+
 setMode(mode);
+setPlaying(playing);
+
+reducedMotion.addEventListener('change', () =>
+    setPlaying(!reducedMotion.matches),
+);
+
+// Space toggles play, unless a control has focus and wants the key itself
+window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space') return;
+    const target = e.target;
+    if (target instanceof Element && target.closest('input, textarea, button'))
+        return;
+    e.preventDefault();
+    setPlaying(!playing);
+});
 
 function drawStroke(stroke: Point[]) {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
@@ -231,7 +293,7 @@ function draw() {
         };
         const graph: Graph = { left: width * 0.5, width: width * 0.45 };
         drawWave(ctx, terms, t, view, graph);
-        drawEpicycles(ctx, chain(terms, t), view);
+        drawEpicycles(ctx, chain(terms, t), view, showCircles);
         return;
     }
 
@@ -243,11 +305,13 @@ function draw() {
 
     // Lazily, so a slider drag recomputes at most once per frame
     trace ??= tracePath(terms, traceSamples());
+    const head = t / TAU;
+    const trail = trailPercent / 100;
 
     if (layout === 'radial') {
         const view = shapeView();
-        drawTrace(ctx, trace, view);
-        drawEpicycles(ctx, chain(terms, t), view);
+        drawTrace(ctx, trace, view, head, trail);
+        drawEpicycles(ctx, chain(terms, t), view, showCircles);
         return;
     }
 
@@ -256,9 +320,9 @@ function draw() {
     const xChain = chain(split.x, t);
     const yChain = chain(split.y, t);
 
-    drawTrace(ctx, trace, views.shape);
-    drawEpicycles(ctx, xChain, views.x);
-    drawEpicycles(ctx, yChain, views.y);
+    drawTrace(ctx, trace, views.shape, head, trail);
+    drawEpicycles(ctx, xChain, views.x, showCircles);
+    drawEpicycles(ctx, yChain, views.y, showCircles);
     drawCrosshair(
         ctx,
         toScreen(xChain[xChain.length - 1], views.x),
@@ -266,7 +330,14 @@ function draw() {
     );
 }
 
-createLoop((dt) => {
-    t = (t + speed * dt) % TAU;
+const loop = createLoop((dt) => {
+    if (playing) t = (t + (speedLevel / 4) * (TAU / 8) * dt) % TAU;
     draw();
-}).start();
+});
+loop.start();
+
+// Embedded on the site: no work while scrolled out of view
+new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting) loop.start();
+    else loop.stop();
+}).observe(app);
