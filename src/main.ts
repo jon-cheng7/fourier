@@ -3,7 +3,13 @@
 import './style.css';
 import { createStage } from './stage';
 import { createLoop } from './loop';
-import { createPanel, addSlider, addChoice, addToggle } from './controls';
+import {
+    createPanel,
+    addSlider,
+    addChoice,
+    addToggle,
+    addTextBox,
+} from './controls';
 import { squareWave } from './math/series';
 import { chain } from './math/epicycles';
 import { dft, byAmplitude } from './math/dft';
@@ -15,13 +21,16 @@ import { fromScreen, type Viewport } from './views/viewport';
 import { drawWave, type Graph } from './views/wave';
 import { drawTrace } from './views/trace';
 import { createFreehand } from './input/freehand';
+import { pathData, samplePath } from './input/svg';
 
-type Mode = 'square' | 'heart' | 'draw';
+type Mode = 'square' | 'heart' | 'draw' | 'svg';
 type ShapeMode = Exclude<Mode, 'square'>;
 
 const TAU = Math.PI * 2;
 const SQUARE_MAX = 50;
 const SHAPE_POINTS = 200;
+const EXAMPLE_SVG =
+    'M 20 50 C 40 20 75 20 90 50 C 75 80 40 80 20 50 L 5 35 L 8 50 L 5 65 Z';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app not found');
@@ -29,10 +38,16 @@ if (!app) throw new Error('#app not found');
 const stage = createStage(app);
 const { ctx } = stage;
 
+function svgTerms(source: string): Term[] {
+    const points = samplePath(pathData(source), SHAPE_POINTS);
+    return byAmplitude(dft(normalize(points)));
+}
+
 // Biggest first, so slicing keeps the best approximation
 const shapeTerms: Record<ShapeMode, Term[]> = {
     heart: byAmplitude(dft(heart(SHAPE_POINTS))),
     draw: [],
+    svg: svgTerms(EXAMPLE_SVG),
 };
 
 let mode: Mode = 'square';
@@ -40,6 +55,7 @@ const counts: Record<Mode, number> = {
     square: 5,
     heart: SHAPE_POINTS,
     draw: SHAPE_POINTS,
+    svg: SHAPE_POINTS,
 };
 let sorted = true;
 let terms: Term[] = [];
@@ -82,6 +98,7 @@ const setMode = (m: Mode) => {
     mode = m;
     freehand.enabled = mode === 'draw';
     app.classList.toggle('drawing', freehand.enabled);
+    svgBox.row.hidden = mode !== 'svg';
     slider.set(counts[mode], mode === 'square' ? SQUARE_MAX : SHAPE_POINTS);
     updateTerms();
 };
@@ -93,9 +110,26 @@ addChoice<Mode>(panel, {
         { value: 'square', label: 'Square wave' },
         { value: 'heart', label: 'Heart' },
         { value: 'draw', label: 'Draw' },
+        { value: 'svg', label: 'SVG' },
     ],
     value: mode,
     onChange: setMode,
+});
+
+const svgBox = addTextBox(panel, {
+    value: EXAMPLE_SVG,
+    placeholder: 'Paste an SVG file or path data',
+    button: 'Use path',
+    onSubmit: (text) => {
+        try {
+            shapeTerms.svg = svgTerms(text);
+            svgBox.setError('');
+            t = 0;
+            updateTerms();
+        } catch (e) {
+            svgBox.setError(e instanceof Error ? e.message : 'Invalid SVG');
+        }
+    },
 });
 
 const slider = addSlider(panel, {
