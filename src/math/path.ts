@@ -34,7 +34,9 @@ export function normalize(points: Point[]): Point[] {
     const cx = points.reduce((sum, p) => sum + p.x, 0) / n;
     const cy = points.reduce((sum, p) => sum + p.y, 0) / n;
 
-    const radius = Math.max(...points.map((p) => Math.hypot(p.x - cx, p.y - cy)));
+    const radius = Math.max(
+        ...points.map((p) => Math.hypot(p.x - cx, p.y - cy)),
+    );
     const s = radius === 0 ? 1 : 1 / radius;
 
     return points.map((p) => ({ x: (p.x - cx) * s, y: (p.y - cy) * s }));
