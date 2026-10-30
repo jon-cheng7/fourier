@@ -6,6 +6,7 @@ export interface SliderOptions {
     max: number;
     value: number;
     format?: (value: number) => string;
+    tip?: string;
     onInput: (value: number) => void;
 }
 
@@ -14,9 +15,14 @@ export interface Slider {
 }
 
 export interface ChoiceOptions<T extends string> {
-    options: { value: T; label: string }[];
+    options: { value: T; label: string; tip?: string }[];
     value: T;
     onChange: (value: T) => void;
+}
+
+export interface Choice<T extends string> {
+    row: HTMLElement;
+    set(value: T): void;
 }
 
 export interface TextBoxOptions {
@@ -33,12 +39,20 @@ export interface TextBox {
 
 export interface ToggleOptions {
     label: string;
+    tip?: string;
     value: boolean;
     onChange: (value: boolean) => void;
 }
 
 export interface Button {
     setLabel(label: string): void;
+}
+
+// Hover/focus text for the shared tooltip (ui/tooltip.ts)
+function setTip(el: HTMLElement, tip: string | undefined) {
+    if (!tip) return;
+    el.dataset.tip = tip;
+    el.classList.add('has-tip');
 }
 
 // Returns the body that controls go in; the header collapses it
@@ -77,6 +91,7 @@ export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
 
     const name = document.createElement('span');
     name.textContent = opts.label;
+    setTip(name, opts.tip);
 
     const input = document.createElement('input');
     input.type = 'range';
@@ -109,16 +124,17 @@ export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
 export function addChoice<T extends string>(
     panel: HTMLElement,
     opts: ChoiceOptions<T>,
-): HTMLElement {
+): Choice<T> {
     const row = document.createElement('div');
     row.className = 'choice';
     row.setAttribute('role', 'radiogroup');
 
-    const buttons = opts.options.map(({ value, label }) => {
+    const buttons = opts.options.map(({ value, label, tip }) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = label;
         button.setAttribute('role', 'radio');
+        setTip(button, tip);
         button.addEventListener('click', () => {
             select(value);
             opts.onChange(value);
@@ -135,7 +151,7 @@ export function addChoice<T extends string>(
     select(opts.value);
 
     panel.append(row);
-    return row;
+    return { row, set: select };
 }
 
 export function addTextBox(panel: HTMLElement, opts: TextBoxOptions): TextBox {
@@ -178,6 +194,7 @@ export function addToggle(panel: HTMLElement, opts: ToggleOptions): void {
 
     const name = document.createElement('span');
     name.textContent = opts.label;
+    setTip(name, opts.tip);
 
     row.append(input, name);
     panel.append(row);
@@ -187,11 +204,13 @@ export function addButton(
     panel: HTMLElement,
     label: string,
     onClick: () => void,
+    tip?: string,
 ): Button {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'action';
     button.textContent = label;
+    setTip(button, tip);
     button.addEventListener('click', onClick);
     panel.append(button);
     return {
