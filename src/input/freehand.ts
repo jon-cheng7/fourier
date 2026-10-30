@@ -28,6 +28,11 @@ export function createFreehand(
         state.stroke = [toLocal(e)];
     });
 
+    canvas.addEventListener('pointermove', (e) => {
+        if (!drawing) return;
+        state.stroke.push(toLocal(e));
+    });
+
     const finish = () => {
         if (!drawing) return;
         drawing = false;
