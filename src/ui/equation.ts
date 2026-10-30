@@ -15,23 +15,25 @@ const num = (x: number, d = 2) => (x < 0 ? '−' : '') + Math.abs(x).toFixed(d);
 const deg = (rad: number) =>
     Math.round(((((rad * 180) / Math.PI) % 360) + 360) % 360);
 
+const T = '<var>t</var>';
+
 // k t with tidy coefficients: t, −t, 3t
 function kt(k: number): string {
-    if (k === 1) return 't';
-    if (k === -1) return '−t';
-    return `${num(k, 0)}t`;
+    if (k === 1) return T;
+    if (k === -1) return `−${T}`;
+    return `${num(k, 0)}${T}`;
 }
 
 function chipLabel(kind: SeriesKind, term: Term): string {
     if (kind === 'wave') {
         const n = term.freq === 1 ? '' : term.freq;
-        return `${term.amp.toFixed(3)} sin ${n}t`;
+        return `${term.amp.toFixed(3)} sin ${n}${T}`;
     }
     const phase = term.phase >= 0 ? `+${num(term.phase)}` : num(term.phase);
     const exp =
         term.freq === 0
-            ? `i·${num(term.phase)}`
-            : `i(${kt(term.freq)}${phase})`;
+            ? `<var>i</var>·${num(term.phase)}`
+            : `<var>i</var>(${kt(term.freq)}${phase})`;
     return `${term.amp.toFixed(2)}e<sup>${exp}</sup>`;
 }
 
@@ -109,13 +111,13 @@ export function createEquation(
             const lhs =
                 kind === 'wave'
                     ? `${span('how', 'How it works', TIPS.howWave)}
-                       ${span('sym', 'f(t)', TIPS.f)} =
-                       ${span('sym', 'Σ<sub>n odd</sub>', TIPS.sumWave)}
-                       ${span('sym', '<sup>4</sup>⁄<sub>πn</sub> sin nt', TIPS.sinnt)}`
+                       ${span('sym', '<var>f</var>(<var>t</var>)', TIPS.f)} =
+                       ${span('sym', 'Σ<sub><var>n</var> odd</sub>', TIPS.sumWave)}
+                       ${span('sym', '<sup>4</sup>⁄<sub>π<var>n</var></sub> sin <var>nt</var>', TIPS.sinnt)}`
                     : `${span('how', 'How it works', TIPS.howShape)}
-                       ${span('sym', 'z(t)', TIPS.z)} =
+                       ${span('sym', '<var>z</var>(<var>t</var>)', TIPS.z)} =
                        ${span('sym', 'Σ', TIPS.sumShape)}
-                       ${span('sym', 'c<sub>k</sub>', TIPS.c)}${span('sym', 'e<sup>ikt</sup>', TIPS.e)}`;
+                       ${span('sym', '<var>c</var><sub><var>k</var></sub>', TIPS.c)}${span('sym', 'e<sup><var>ikt</var></sup>', TIPS.e)}`;
 
             const chips = terms
                 .slice(0, CHIPS)

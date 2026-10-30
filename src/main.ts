@@ -11,13 +11,14 @@ import {
     addToggle,
     addTextBox,
     addButton,
+    addSelect,
 } from './controls';
 import { createTooltip } from './ui/tooltip';
 import { createEquation, describeTerm, type SeriesKind } from './ui/equation';
 import { squareWave } from './math/series';
 import { chain, tracePath, splitTerms } from './math/epicycles';
 import { dft, byAmplitude } from './math/dft';
-import { heart } from './math/shapes';
+import { SHAPES } from './math/shapes';
 import { resample, normalize } from './math/path';
 import type { Point, Term } from './math/types';
 import { drawEpicycles } from './views/epicycles';
@@ -29,8 +30,8 @@ import { pickCircle } from './views/pick';
 import { createFreehand } from './input/freehand';
 import { pathData, samplePath } from './input/svg';
 
-type Mode = 'square' | 'heart' | 'draw' | 'svg';
-type ShapeMode = Exclude<Mode, 'square'>;
+type Mode = 'wave' | 'shape' | 'draw' | 'svg';
+type ShapeMode = Exclude<Mode, 'wave'>;
 type Layout = 'radial' | 'split';
 type Tool = 'pen' | 'hand';
 
@@ -46,8 +47,9 @@ const EXAMPLE_SVG =
     'M 20 50 C 40 20 75 20 90 50 C 75 80 40 80 20 50 L 5 35 L 8 50 L 5 65 Z';
 
 const TIPS = {
-    square: 'Built from known coefficients: odd harmonics n, each 4/(πn) tall. No DFT needed.',
-    heart: 'A heart curve sampled at 1024 points, then turned into circles by the DFT.',
+    wave: 'Built from known coefficients: odd harmonics n, each 4/(πn) tall. No DFT needed.',
+    shape: 'Built-in shapes, each sampled as 1024 points and turned into circles by the DFT. Curves from a trig formula come out as just a few circles.',
+    picker: 'Pick a shape. The note underneath says what makes it interesting.',
     draw: 'Draw any closed shape. It’s resampled to evenly spaced points, centred, scaled, then run through the DFT.',
     svg: 'Paste an SVG path. The browser walks along it to give evenly spaced points for the DFT.',
     radial: 'All circles chained tip to tail; the last tip draws the shape.',
@@ -74,17 +76,31 @@ function svgTerms(source: string): Term[] {
     return byAmplitude(dft(normalize(points)));
 }
 
+// One DFT per preset, the first time it's picked
+const presetCache = new Map<string, Term[]>();
+function presetTerms(id: string): Term[] {
+    let cached = presetCache.get(id);
+    if (!cached) {
+        const preset = SHAPES.find((s) => s.id === id) ?? SHAPES[0];
+        cached = byAmplitude(dft(normalize(preset.points(SHAPE_POINTS))));
+        presetCache.set(id, cached);
+    }
+    return cached;
+}
+
+let shapeId = SHAPES[0].id;
+
 // Biggest first, so slicing keeps the best approximation
 const shapeTerms: Record<ShapeMode, Term[]> = {
-    heart: byAmplitude(dft(heart(SHAPE_POINTS))),
+    shape: presetTerms(shapeId),
     draw: [],
     svg: svgTerms(EXAMPLE_SVG),
 };
 
-let mode: Mode = 'square';
+let mode: Mode = 'wave';
 const counts: Record<Mode, number> = {
-    square: 5,
-    heart: SHAPE_POINTS,
+    wave: 5,
+    shape: SHAPE_POINTS,
     draw: SHAPE_POINTS,
     svg: SHAPE_POINTS,
 };
@@ -108,13 +124,13 @@ let canvasTip = false;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let playing = !reducedMotion.matches;
 
-const seriesKind = (): SeriesKind => (mode === 'square' ? 'wave' : 'shape');
+const seriesKind = (): SeriesKind => (mode === 'wave' ? 'wave' : 'shape');
 
 function updateTerms() {
     trace = null;
     split = null;
-    if (mode === 'square') {
-        terms = squareWave(counts.square);
+    if (mode === 'wave') {
+        terms = squareWave(counts.wave);
     } else {
         const picked = shapeTerms[mode].slice(0, counts[mode]);
         terms = sorted ? picked : [...picked].sort((a, b) => a.freq - b.freq);
@@ -223,8 +239,9 @@ const setMode = (m: Mode) => {
     toolbar.hidden = mode !== 'draw';
     setTool(shapeTerms.draw.length ? 'hand' : 'pen');
     svgBox.row.hidden = mode !== 'svg';
-    layoutChoice.row.hidden = mode === 'square';
-    slider.set(counts[mode], mode === 'square' ? SQUARE_MAX : SHAPE_POINTS);
+    shapeRow.hidden = mode !== 'shape';
+    layoutChoice.row.hidden = mode === 'wave';
+    slider.set(counts[mode], mode === 'wave' ? SQUARE_MAX : SHAPE_POINTS);
     camera.reset();
     updateTerms();
 };
@@ -233,8 +250,8 @@ const panel = createPanel(app, matchMedia('(max-height: 560px)').matches);
 
 addChoice<Mode>(panel, {
     options: [
-        { value: 'square', label: 'Square wave', tip: TIPS.square },
-        { value: 'heart', label: 'Heart', tip: TIPS.heart },
+        { value: 'wave', label: 'Square wave', tip: TIPS.wave },
+        { value: 'shape', label: 'Shape', tip: TIPS.shape },
         { value: 'draw', label: 'Draw', tip: TIPS.draw },
         { value: 'svg', label: 'SVG', tip: TIPS.svg },
     ],
@@ -252,6 +269,31 @@ const layoutChoice = addChoice<Layout>(panel, {
         layout = l;
     },
 });
+
+const shapeRow = document.createElement('div');
+shapeRow.className = 'shape-picker';
+panel.append(shapeRow);
+const shapeAbout = document.createElement('p');
+shapeAbout.className = 'about';
+const showAbout = () => {
+    shapeAbout.textContent = SHAPES.find((s) => s.id === shapeId)?.about ?? '';
+};
+addSelect(shapeRow, {
+    label: 'Shape',
+    tip: TIPS.picker,
+    options: SHAPES.map(({ id, label }) => ({ value: id, label })),
+    value: shapeId,
+    onChange: (id) => {
+        shapeId = id;
+        shapeTerms.shape = presetTerms(id);
+        showAbout();
+        t = 0;
+        camera.reset();
+        updateTerms();
+    },
+});
+shapeRow.append(shapeAbout);
+showAbout();
 
 const svgBox = addTextBox(panel, {
     value: EXAMPLE_SVG,
@@ -275,7 +317,7 @@ const slider = addSlider(panel, {
     tip: TIPS.terms,
     min: 1,
     max: SQUARE_MAX,
-    value: counts.square,
+    value: counts.wave,
     onInput: (n) => {
         counts[mode] = n;
         updateTerms();
@@ -289,6 +331,8 @@ addSlider(panel, {
     max: 12,
     value: speedLevel,
     format: (v) => `${v / 4}×`,
+    decimals: true,
+    parse: (text) => Number(text) * 4,
     onInput: (v) => {
         speedLevel = v;
     },
@@ -357,15 +401,37 @@ reducedMotion.addEventListener('change', () =>
     setPlaying(!reducedMotion.matches),
 );
 
-// Space toggles play; D / H pick the Draw-mode tool. Ignored while typing or on a focused control
+// Space only ever plays / pauses: it never presses a focused button, ticks a box or scrolls.
+// The SVG box is the one place a typed space is kept. Capture phase, so it runs first
+const isSpace = (e: KeyboardEvent) =>
+    e.code === 'Space' && !(e.target instanceof HTMLTextAreaElement);
+window.addEventListener(
+    'keydown',
+    (e) => {
+        if (!isSpace(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.repeat) setPlaying(!playing);
+    },
+    { capture: true },
+);
+window.addEventListener(
+    'keyup',
+    (e) => {
+        if (isSpace(e)) e.preventDefault();
+    },
+    { capture: true },
+);
+
+// D / H pick the Draw-mode tool. Ignored while typing or on a focused control
 window.addEventListener('keydown', (e) => {
     const target = e.target;
-    if (target instanceof Element && target.closest('input, textarea, button'))
+    if (
+        target instanceof Element &&
+        target.closest('input, textarea, button, select')
+    )
         return;
-    if (e.code === 'Space') {
-        e.preventDefault();
-        setPlaying(!playing);
-    } else if (mode === 'draw' && e.code === 'KeyD') {
+    if (mode === 'draw' && e.code === 'KeyD') {
         setTool('pen');
     } else if (mode === 'draw' && e.code === 'KeyH') {
         setTool('hand');
@@ -462,7 +528,7 @@ function draw() {
     const drawing = freehand.stroke.length > 0;
     hint.hidden = !(mode === 'draw' && !drawing && terms.length === 0);
 
-    if (mode === 'square') {
+    if (mode === 'wave') {
         const base: Viewport = {
             origin: { x: width * 0.25, y: height / 2 },
             scale: Math.min(width * 0.12, height * 0.28),
