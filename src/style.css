@@ -60,3 +60,42 @@ canvas {
     accent-color: #c5fb45;
     cursor: pointer;
 }
+
+.choice {
+    display: flex;
+    gap: 4px;
+}
+
+.choice button {
+    flex: 1;
+    padding: 5px 10px;
+    border: 1px solid #222;
+    border-radius: 5px;
+    background: transparent;
+    color: #888;
+    font: inherit;
+    cursor: pointer;
+}
+
+.choice button:hover {
+    color: #e5e5e5;
+}
+
+.choice button[aria-checked='true'] {
+    border-color: #c5fb45;
+    color: #c5fb45;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #888;
+    cursor: pointer;
+}
+
+.toggle input {
+    margin: 0;
+    accent-color: #c5fb45;
+    cursor: pointer;
+}
