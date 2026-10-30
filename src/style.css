@@ -62,7 +62,7 @@ canvas {
 
 .slider {
     display: grid;
-    grid-template-columns: 48px 160px 24px;
+    grid-template-columns: 48px 160px 32px;
     align-items: center;
     gap: 10px;
     color: #888;
