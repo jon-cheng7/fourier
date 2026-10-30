@@ -52,8 +52,20 @@ canvas {
     touch-action: none; /* freehand input later: stop touch scroll/zoom */
 }
 
+canvas {
+    cursor: grab;
+}
+
+canvas.grabbing {
+    cursor: grabbing;
+}
+
 .drawing canvas {
     cursor: crosshair;
+}
+
+.muted {
+    color: #666;
 }
 
 .hint {

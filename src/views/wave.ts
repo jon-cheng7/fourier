@@ -5,7 +5,7 @@ import { tipAt } from '../math/epicycles';
 import { toScreen, type Viewport } from './viewport';
 
 const TAU = Math.PI * 2;
-const SAMPLES = 400;
+const SAMPLE_PX = 2;
 
 export interface Graph {
     left: number;
@@ -37,15 +37,17 @@ export function drawWave(
     ctx.lineTo(graph.left, tip.y);
     ctx.stroke();
 
-    // wave
+    // wave: one sample every few screen px, only where it's visible, so it stays smooth when zoomed
+    const from = Math.max(graph.left, 0);
+    const to = Math.min(graph.left + graph.width, ctx.canvas.clientWidth);
     ctx.strokeStyle = '#c5fb45';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (let i = 0; i <= SAMPLES; i++) {
-        const f = i / SAMPLES;
+    for (let x = from; x <= to + SAMPLE_PX; x += SAMPLE_PX) {
+        const f = Math.min((x - graph.left) / graph.width, 1);
         const p = tipAt(terms, t - f * TAU);
         const y = toScreen({ x: 0, y: p.y }, view).y;
-        ctx.lineTo(graph.left + f * graph.width, y);
+        ctx.lineTo(Math.min(x, graph.left + graph.width), y);
     }
     ctx.stroke();
 }

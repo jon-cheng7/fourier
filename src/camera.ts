@@ -1,0 +1,148 @@
+// Pan and zoom over the drawing (the grid behind stays put). Drag to pan, wheel or pinch to zoom, double-click resets
+
+import type { Point } from './math/types';
+import type { Viewport } from './views/viewport';
+
+// How far past the content you can drag, as a fraction of the screen
+const PAN_SLACK = 0.35;
+const WHEEL_SPEED = 0.0015;
+
+export interface Camera {
+    readonly zoom: number;
+    apply(view: Viewport): Viewport;
+    // A screen x through the camera, for things placed in pixels (the wave graph)
+    x(px: number): number;
+    setMaxZoom(max: number): void;
+    reset(): void;
+}
+
+export function createCamera(
+    canvas: HTMLCanvasElement,
+    canPan: () => boolean,
+): Camera {
+    let zoom = 1;
+    let maxZoom = 1;
+    const offset = { x: 0, y: 0 };
+    const pointers = new Map<number, Point>();
+    let pinch = 0;
+
+    const size = () => ({ w: canvas.clientWidth, h: canvas.clientHeight });
+    const centre = () => ({ x: size().w / 2, y: size().h / 2 });
+
+    const local = (e: PointerEvent | WheelEvent): Point => {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    // Zoomed content covers (zoom - 1) extra half-screens each way; slack on top of that
+    const clamp = () => {
+        zoom = Math.min(Math.max(zoom, 1), maxZoom);
+        const { w, h } = size();
+        const limX = (w / 2) * (zoom - 1) + w * PAN_SLACK;
+        const limY = (h / 2) * (zoom - 1) + h * PAN_SLACK;
+        offset.x = Math.min(Math.max(offset.x, -limX), limX);
+        offset.y = Math.min(Math.max(offset.y, -limY), limY);
+    };
+
+    // Keeps the point under `at` fixed on screen
+    const zoomAt = (at: Point, factor: number) => {
+        const c = centre();
+        const before = zoom;
+        zoom = Math.min(Math.max(zoom * factor, 1), maxZoom);
+        const k = zoom / before;
+        offset.x = at.x - c.x - (at.x - c.x - offset.x) * k;
+        offset.y = at.y - c.y - (at.y - c.y - offset.y) * k;
+        clamp();
+    };
+
+    const spread = () => {
+        const [a, b] = [...pointers.values()];
+        return {
+            mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+            dist: Math.hypot(b.x - a.x, b.y - a.y),
+        };
+    };
+
+    canvas.addEventListener('pointerdown', (e) => {
+        // Left button belongs to freehand while drawing; middle/right always pan
+        const allowed = e.button === 1 || e.button === 2 || canPan();
+        if (!allowed || pointers.size >= 2) return;
+        canvas.setPointerCapture(e.pointerId);
+        pointers.set(e.pointerId, local(e));
+        if (pointers.size === 2) pinch = spread().dist;
+        canvas.classList.add('grabbing');
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+        const prev = pointers.get(e.pointerId);
+        if (!prev) return;
+        const p = local(e);
+        pointers.set(e.pointerId, p);
+
+        if (pointers.size === 1) {
+            offset.x += p.x - prev.x;
+            offset.y += p.y - prev.y;
+            clamp();
+            return;
+        }
+        const { mid, dist } = spread();
+        offset.x += (p.x - prev.x) / 2;
+        offset.y += (p.y - prev.y) / 2;
+        if (pinch > 0) zoomAt(mid, dist / pinch);
+        pinch = dist;
+    });
+
+    const release = (e: PointerEvent) => {
+        pointers.delete(e.pointerId);
+        if (pointers.size < 2) pinch = 0;
+        if (pointers.size === 0) canvas.classList.remove('grabbing');
+    };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+
+    // passive: false so preventDefault stops the page (or the site around the iframe) scrolling
+    canvas.addEventListener(
+        'wheel',
+        (e) => {
+            e.preventDefault();
+            zoomAt(local(e), Math.exp(-e.deltaY * WHEEL_SPEED));
+        },
+        { passive: false },
+    );
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    const reset = () => {
+        zoom = 1;
+        offset.x = 0;
+        offset.y = 0;
+    };
+    canvas.addEventListener('dblclick', () => {
+        if (canPan()) reset();
+    });
+
+    return {
+        get zoom() {
+            return zoom;
+        },
+        apply: (view) => {
+            const c = centre();
+            return {
+                origin: {
+                    x: c.x + (view.origin.x - c.x) * zoom + offset.x,
+                    y: c.y + (view.origin.y - c.y) * zoom + offset.y,
+                },
+                scale: view.scale * zoom,
+            };
+        },
+        x: (px) => {
+            const c = centre();
+            return c.x + (px - c.x) * zoom + offset.x;
+        },
+        setMaxZoom: (max) => {
+            maxZoom = Math.max(1, max);
+            clamp();
+        },
+        reset,
+    };
+}

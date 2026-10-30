@@ -3,6 +3,7 @@
 import './style.css';
 import { createStage } from './stage';
 import { createLoop } from './loop';
+import { createCamera } from './camera';
 import {
     createPanel,
     addSlider,
@@ -20,7 +21,7 @@ import type { Point, Term } from './math/types';
 import { drawEpicycles } from './views/epicycles';
 import { fromScreen, toScreen, type Viewport } from './views/viewport';
 import { drawWave, type Graph } from './views/wave';
-import { drawTrace } from './views/trace';
+import { createTrace, type Trace } from './views/trace';
 import { drawCrosshair } from './views/crosshair';
 import { createFreehand } from './input/freehand';
 import { pathData, samplePath } from './input/svg';
@@ -33,6 +34,10 @@ const TAU = Math.PI * 2;
 const SQUARE_MAX = 50;
 const SHAPE_POINTS = 1024;
 const MIN_TRACE_SAMPLES = 600;
+// Zoom stops when the smallest circle that matters is this big (radius, px)
+const ZOOM_TARGET_PX = 20;
+const ZOOM_MIN_LIMIT = 4;
+const ZOOM_MAX_LIMIT = 200;
 const EXAMPLE_SVG =
     'M 20 50 C 40 20 75 20 90 50 C 75 80 40 80 20 50 L 5 35 L 8 50 L 5 65 Z';
 
@@ -64,8 +69,9 @@ const counts: Record<Mode, number> = {
 let sorted = true;
 let layout: Layout = 'radial';
 let terms: Term[] = [];
-let trace: Point[] | null = null;
+let trace: Trace | null = null;
 let split: { x: Term[]; y: Term[] } | null = null;
+let smallestAmp = 0;
 let t = 0;
 let speedLevel = 4; // ×0.25 per step; 4 = one cycle every 8 s
 let trailPercent = 100;
@@ -79,10 +85,29 @@ function updateTerms() {
     split = null;
     if (mode === 'square') {
         terms = squareWave(counts.square);
-        return;
+    } else {
+        const picked = shapeTerms[mode].slice(0, counts[mode]);
+        terms = sorted ? picked : [...picked].sort((a, b) => a.freq - b.freq);
     }
-    const picked = shapeTerms[mode].slice(0, counts[mode]);
-    terms = sorted ? picked : [...picked].sort((a, b) => a.freq - b.freq);
+    smallestAmp = smallestVisibleAmp(terms);
+}
+
+// Circles under 0.01% of the biggest are noise, not detail worth zooming to
+function smallestVisibleAmp(ts: Term[]): number {
+    let largest = 0;
+    for (const { amp } of ts) largest = Math.max(largest, amp);
+    let smallest = largest;
+    for (const { amp } of ts) {
+        if (amp > largest * 1e-4) smallest = Math.min(smallest, amp);
+    }
+    return smallest;
+}
+
+// More terms → smaller circles → more worth zooming into
+function zoomLimit(baseScale: number): number {
+    if (smallestAmp === 0) return 1;
+    const zoom = ZOOM_TARGET_PX / (smallestAmp * baseScale);
+    return Math.min(ZOOM_MAX_LIMIT, Math.max(ZOOM_MIN_LIMIT, zoom));
 }
 
 // 4× the highest freq keeps fast circles smooth, not just un-aliased
@@ -122,8 +147,12 @@ const freehand = createFreehand(stage.canvas, (stroke) => {
         dft(normalize(resample(points, SHAPE_POINTS))),
     );
     t = 0;
+    camera.reset();
     updateTerms();
 });
+
+// Left-drag pans everywhere except Draw mode, where it draws
+const camera = createCamera(stage.canvas, () => !freehand.enabled);
 
 const hint = document.createElement('div');
 hint.className = 'hint';
@@ -137,6 +166,7 @@ const setMode = (m: Mode) => {
     svgBox.row.hidden = mode !== 'svg';
     layoutRow.hidden = mode === 'square';
     slider.set(counts[mode], mode === 'square' ? SQUARE_MAX : SHAPE_POINTS);
+    camera.reset();
     updateTerms();
 };
 
@@ -173,6 +203,7 @@ const svgBox = addTextBox(panel, {
             shapeTerms.svg = svgTerms(text);
             svgBox.setError('');
             t = 0;
+            camera.reset();
             updateTerms();
         } catch (e) {
             svgBox.setError(e instanceof Error ? e.message : 'Invalid SVG');
@@ -241,6 +272,15 @@ addToggle(actions, {
     },
 });
 
+const viewRow = document.createElement('div');
+viewRow.className = 'row';
+panel.append(viewRow);
+addButton(viewRow, 'Reset view', () => camera.reset());
+const viewHint = document.createElement('span');
+viewHint.className = 'muted';
+viewHint.textContent = 'Drag to pan · scroll to zoom';
+viewRow.append(viewHint);
+
 setMode(mode);
 setPlaying(playing);
 
@@ -287,11 +327,16 @@ function draw() {
     hint.hidden = !(mode === 'draw' && !drawing && terms.length === 0);
 
     if (mode === 'square') {
-        const view: Viewport = {
+        const base: Viewport = {
             origin: { x: width * 0.25, y: height / 2 },
             scale: Math.min(width * 0.12, height * 0.28),
         };
-        const graph: Graph = { left: width * 0.5, width: width * 0.45 };
+        camera.setMaxZoom(zoomLimit(base.scale));
+        const view = camera.apply(base);
+        const graph: Graph = {
+            left: camera.x(width * 0.5),
+            width: width * 0.45 * camera.zoom,
+        };
         drawWave(ctx, terms, t, view, graph);
         drawEpicycles(ctx, chain(terms, t), view, showCircles);
         return;
@@ -304,23 +349,31 @@ function draw() {
     if (terms.length === 0) return;
 
     // Lazily, so a slider drag recomputes at most once per frame
-    trace ??= tracePath(terms, traceSamples());
+    trace ??= createTrace(terms, tracePath(terms, traceSamples()));
     const head = t / TAU;
     const trail = trailPercent / 100;
 
     if (layout === 'radial') {
-        const view = shapeView();
-        drawTrace(ctx, trace, view, head, trail);
+        const base = shapeView();
+        camera.setMaxZoom(zoomLimit(base.scale));
+        const view = camera.apply(base);
+        trace.draw(ctx, view, head, trail);
         drawEpicycles(ctx, chain(terms, t), view, showCircles);
         return;
     }
 
     split ??= splitTerms(terms);
-    const views = splitViews();
+    const base = splitViews();
+    camera.setMaxZoom(zoomLimit(base.shape.scale));
+    const views = {
+        shape: camera.apply(base.shape),
+        x: camera.apply(base.x),
+        y: camera.apply(base.y),
+    };
     const xChain = chain(split.x, t);
     const yChain = chain(split.y, t);
 
-    drawTrace(ctx, trace, views.shape, head, trail);
+    trace.draw(ctx, views.shape, head, trail);
     drawEpicycles(ctx, xChain, views.x, showCircles);
     drawEpicycles(ctx, yChain, views.y, showCircles);
     drawCrosshair(
