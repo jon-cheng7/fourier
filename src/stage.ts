@@ -26,7 +26,8 @@ export function createStage(container: HTMLElement): Stage {
         stage.height = height;
     };
 
-    // Fires once on observe
+    // Sized now as well: the observer's first call waits for a rendered frame (never, in a hidden tab)
+    resize(container.clientWidth, container.clientHeight);
     new ResizeObserver(([entry]) => {
         resize(entry.contentRect.width, entry.contentRect.height);
     }).observe(container);
