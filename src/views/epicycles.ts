@@ -9,22 +9,25 @@ export function drawEpicycles(
     ctx: CanvasRenderingContext2D,
     points: Point[],
     view: Viewport,
+    showCircles = true,
 ): void {
     const screen = points.map((p) => toScreen(p, view));
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
 
     // circles
-    for (let i = 0; i < screen.length - 1; i++) {
-        const centre = screen[i];
-        const next = screen[i + 1];
-        const r = Math.hypot(next.x - centre.x, next.y - centre.y);
-        ctx.moveTo(centre.x + r, centre.y);
-        ctx.arc(centre.x, centre.y, r, 0, TAU);
+    if (showCircles) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.beginPath();
+        for (let i = 0; i < screen.length - 1; i++) {
+            const centre = screen[i];
+            const next = screen[i + 1];
+            const r = Math.hypot(next.x - centre.x, next.y - centre.y);
+            ctx.moveTo(centre.x + r, centre.y);
+            ctx.arc(centre.x, centre.y, r, 0, TAU);
+        }
+        ctx.stroke();
     }
-    ctx.stroke();
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.beginPath();

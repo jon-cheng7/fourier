@@ -9,6 +9,14 @@ body {
     color: #e5e5e5;
     font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
+    cursor: default; /* the site hides its own cursor over the iframe */
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 1px solid #c5fb45;
+    outline-offset: 2px;
 }
 
 /* Positioning context for overlay controls */
@@ -49,15 +57,75 @@ canvas {
     position: absolute;
     left: 16px;
     bottom: 16px;
+    max-height: calc(100% - 32px);
+    overflow-y: auto;
+    border: 1px solid #222;
+    border-radius: 8px;
+    background: rgba(10, 10, 10, 0.85);
+    font-size: 12px;
+    user-select: none;
+}
+
+.controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 8px 14px;
+    border: 0;
+    background: transparent;
+    color: #888;
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.controls-header::after {
+    content: '−';
+    font-size: 14px;
+}
+
+.controls-header[aria-expanded='false']::after {
+    content: '+';
+}
+
+.controls-header:hover {
+    color: #e5e5e5;
+}
+
+.controls-body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px 14px;
-    border: 1px solid #222;
-    border-radius: 8px;
-    background: rgba(10, 10, 10, 0.8);
-    font-size: 12px;
-    user-select: none;
+    padding: 2px 14px 12px;
+}
+
+.controls-body[hidden] {
+    display: none;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.action {
+    min-width: 58px;
+    padding: 5px 10px;
+    border: 1px solid #c5fb45;
+    border-radius: 5px;
+    background: transparent;
+    color: #c5fb45;
+    font: inherit;
+    cursor: pointer;
+}
+
+.action:hover {
+    background: rgba(197, 251, 69, 0.1);
 }
 
 .slider {

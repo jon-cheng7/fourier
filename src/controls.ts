@@ -5,6 +5,7 @@ export interface SliderOptions {
     min: number;
     max: number;
     value: number;
+    format?: (value: number) => string;
     onInput: (value: number) => void;
 }
 
@@ -36,11 +37,38 @@ export interface ToggleOptions {
     onChange: (value: boolean) => void;
 }
 
-export function createPanel(container: HTMLElement): HTMLElement {
+export interface Button {
+    setLabel(label: string): void;
+}
+
+// Returns the body that controls go in; the header collapses it
+export function createPanel(
+    container: HTMLElement,
+    collapsed: boolean,
+): HTMLElement {
     const panel = document.createElement('div');
     panel.className = 'controls';
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'controls-header';
+    header.textContent = 'Controls';
+
+    const body = document.createElement('div');
+    body.className = 'controls-body';
+    body.id = 'controls-body';
+    header.setAttribute('aria-controls', body.id);
+
+    const setCollapsed = (c: boolean) => {
+        body.hidden = c;
+        header.setAttribute('aria-expanded', String(!c));
+    };
+    setCollapsed(collapsed);
+    header.addEventListener('click', () => setCollapsed(!body.hidden));
+
+    panel.append(header, body);
     container.append(panel);
-    return panel;
+    return body;
 }
 
 export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
@@ -56,16 +84,20 @@ export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
     input.step = '1';
 
     const out = document.createElement('output');
+    const show = () => {
+        const v = input.valueAsNumber;
+        out.textContent = opts.format ? opts.format(v) : String(v);
+    };
 
     const set = (value: number, max: number) => {
         input.max = String(max);
         input.value = String(value);
-        out.textContent = input.value;
+        show();
     };
     set(opts.value, opts.max);
 
     input.addEventListener('input', () => {
-        out.textContent = input.value;
+        show();
         opts.onInput(input.valueAsNumber);
     });
 
@@ -149,4 +181,22 @@ export function addToggle(panel: HTMLElement, opts: ToggleOptions): void {
 
     row.append(input, name);
     panel.append(row);
+}
+
+export function addButton(
+    panel: HTMLElement,
+    label: string,
+    onClick: () => void,
+): Button {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'action';
+    button.textContent = label;
+    button.addEventListener('click', onClick);
+    panel.append(button);
+    return {
+        setLabel: (l) => {
+            button.textContent = l;
+        },
+    };
 }
