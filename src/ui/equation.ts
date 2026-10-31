@@ -95,10 +95,26 @@ export function createEquation(
     container.append(el);
 
     el.addEventListener('pointerover', (e) => {
+        if (e.pointerType !== 'mouse') return;
         const chip = (e.target as Element).closest<HTMLElement>('[data-index]');
         onHover(chip ? Number(chip.dataset.index) : -1);
     });
-    el.addEventListener('pointerleave', () => onHover(-1));
+    el.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'mouse') onHover(-1);
+    });
+
+    // Touch: a tapped chip stays lit until the next tap anywhere (same tap toggles it off)
+    let pinned = -1;
+    container.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') return;
+        const chip =
+            e.target instanceof Element && el.contains(e.target)
+                ? e.target.closest<HTMLElement>('[data-index]')
+                : null;
+        const i = chip ? Number(chip.dataset.index) : -1;
+        pinned = i === pinned ? -1 : i;
+        onHover(pinned);
+    });
 
     const span = (cls: string, html: string, tip: string) =>
         `<span class="${cls} has-tip" data-tip="${tip.replace(/"/g, '&quot;')}">${html}</span>`;

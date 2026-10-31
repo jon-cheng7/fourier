@@ -15,6 +15,7 @@ export function createFreehand(
 ): Freehand {
     const state: Freehand = { enabled: false, stroke: [] };
     let drawing = false;
+    let pen = -1;
 
     const toLocal = (e: PointerEvent): Point => {
         const rect = canvas.getBoundingClientRect();
@@ -22,19 +23,26 @@ export function createFreehand(
     };
 
     canvas.addEventListener('pointerdown', (e) => {
+        // A second finger means a pinch, not part of the shape: drop the stroke
+        if (drawing && e.pointerId !== pen) {
+            drawing = false;
+            state.stroke = [];
+            return;
+        }
         if (!state.enabled || e.button !== 0) return;
         drawing = true;
+        pen = e.pointerId;
         canvas.setPointerCapture(e.pointerId);
         state.stroke = [toLocal(e)];
     });
 
     canvas.addEventListener('pointermove', (e) => {
-        if (!drawing) return;
+        if (!drawing || e.pointerId !== pen) return;
         state.stroke.push(toLocal(e));
     });
 
-    const finish = () => {
-        if (!drawing) return;
+    const finish = (e: PointerEvent) => {
+        if (!drawing || e.pointerId !== pen) return;
         drawing = false;
         if (state.stroke.length >= MIN_POINTS) onDone(state.stroke);
         state.stroke = [];

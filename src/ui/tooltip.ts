@@ -1,4 +1,4 @@
-// One floating tooltip for the app. Anything with data-tip gets it on hover or keyboard focus;
+// One floating tooltip for the app. Anything with data-tip gets it on hover, keyboard focus, or a tap (touch);
 // the canvas calls show/hide itself for circles. Tip text is our own markup, never user input
 
 import type { Point } from '../math/types';
@@ -42,12 +42,30 @@ export function createTooltip(container: HTMLElement): Tooltip {
             : null;
 
     container.addEventListener('pointerover', (e) => {
+        if (e.pointerType !== 'mouse') return;
         const t = tipOf(e.target);
         if (t?.dataset.tip) show(t.dataset.tip, local(e));
     });
     container.addEventListener('pointerout', (e) => {
+        if (e.pointerType !== 'mouse') return;
         const from = tipOf(e.target);
         if (from && from !== tipOf(e.relatedTarget)) hide();
+    });
+
+    // Touch: tap a label to show its tip, tap it again or anywhere else to close.
+    // Controls just act, so tapping Pause doesn't pop up an explanation every time
+    let tapped: HTMLElement | null = null;
+    container.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') return;
+        const t = tipOf(e.target);
+        const control = t?.closest('button, input, select, textarea');
+        if (t?.dataset.tip && !control && t !== tapped) {
+            show(t.dataset.tip, local(e));
+            tapped = t;
+        } else if (tapped) {
+            hide();
+            tapped = null;
+        }
     });
     container.addEventListener('focusin', (e) => {
         const t = tipOf(e.target);

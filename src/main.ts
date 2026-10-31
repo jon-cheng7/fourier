@@ -43,6 +43,10 @@ const MIN_TRACE_SAMPLES = 600;
 const ZOOM_TARGET_PX = 20;
 const ZOOM_MIN_LIMIT = 4;
 const ZOOM_MAX_LIMIT = 200;
+// Touch: how far from a ring a tap still picks it, and how far a finger can move and still count as a tap
+const TAP_PICK_PX = 16;
+const TAP_MOVE_PX = 8;
+const touchFirst = matchMedia('(pointer: coarse)').matches;
 const EXAMPLE_SVG =
     'M 20 50 C 40 20 75 20 90 50 C 75 80 40 80 20 50 L 5 35 L 8 50 L 5 65 Z';
 
@@ -60,7 +64,7 @@ const TIPS = {
     sort: 'Chain the circles biggest first. The drawing is identical either way, because adding arms in any order lands on the same tip; only the arm’s motion changes.',
     circles: 'Show the circles, or just the arm joining their centres.',
     play: 'Pause or play the cycle (Space).',
-    reset: 'Back to the normal view. Double-click the drawing does the same.',
+    reset: 'Back to the normal view. Double-click (or double-tap) the drawing does the same.',
     pen: 'Drag to draw a new closed shape; it replaces the current one (D).',
     hand: 'Drag to pan without drawing (H). Right- or middle-drag always pans.',
 };
@@ -120,6 +124,10 @@ let showCircles = true;
 let chipHover = -1;
 let cursor: Point | null = null;
 let canvasTip = false;
+// Touch has no hover: a tap picks a circle (resolved on the next frame) and keeps it lit until the next tap
+let tapAt: Point | null = null;
+let tapStart: Point | null = null;
+let pinned: { term: number; at: Point } | null = null;
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let playing = !reducedMotion.matches;
@@ -129,6 +137,7 @@ const seriesKind = (): SeriesKind => (mode === 'wave' ? 'wave' : 'shape');
 function updateTerms() {
     trace = null;
     split = null;
+    pinned = null;
     if (mode === 'wave') {
         terms = squareWave(counts.wave);
     } else {
@@ -246,7 +255,11 @@ const setMode = (m: Mode) => {
     updateTerms();
 };
 
-const panel = createPanel(app, matchMedia('(max-height: 560px)').matches);
+// Collapsed on phones and short screens, so the drawing gets the room
+const panel = createPanel(
+    app,
+    matchMedia('(max-height: 560px), (max-width: 640px)').matches,
+);
 
 addChoice<Mode>(panel, {
     options: [
@@ -391,7 +404,9 @@ panel.append(viewRow);
 addButton(viewRow, 'Reset view', () => camera.reset(), TIPS.reset);
 const viewHint = document.createElement('span');
 viewHint.className = 'muted';
-viewHint.textContent = 'Drag to pan · scroll to zoom · hover a circle';
+viewHint.textContent = touchFirst
+    ? 'Drag to pan · pinch to zoom · tap a circle'
+    : 'Drag to pan · scroll to zoom · hover a circle';
 viewRow.append(viewHint);
 
 setMode(mode);
@@ -443,13 +458,29 @@ const canvasPoint = (e: PointerEvent): Point => {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 };
 stage.canvas.addEventListener('pointermove', (e) => {
-    cursor = e.buttons ? null : canvasPoint(e);
+    if (e.pointerType === 'mouse') cursor = e.buttons ? null : canvasPoint(e);
 });
-stage.canvas.addEventListener('pointerdown', () => {
-    cursor = null;
+stage.canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') {
+        cursor = null;
+        return;
+    }
+    pinned = null;
+    tapStart = canvasPoint(e);
 });
-stage.canvas.addEventListener('pointerleave', () => {
-    cursor = null;
+// A tap anywhere else (controls, equation) lets go of the picked circle
+app.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' && e.target !== stage.canvas) pinned = null;
+});
+stage.canvas.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'mouse' || !tapStart) return;
+    const at = canvasPoint(e);
+    if (Math.hypot(at.x - tapStart.x, at.y - tapStart.y) <= TAP_MOVE_PX)
+        tapAt = at;
+    tapStart = null;
+});
+stage.canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType === 'mouse') cursor = null;
 });
 
 interface HoverChain {
@@ -466,7 +497,21 @@ const SPLIT_NOTE =
 // Which term is hovered (chip first, then the circle under the cursor), shown as a tooltip
 // on the canvas. Returns the circles to highlight in each chain
 function hover(chains: HoverChain[], note = ''): number[][] {
+    if (tapAt) {
+        let hit = -1;
+        for (const c of chains) {
+            const i = pickCircle(c.screen, tapAt, TAP_PICK_PX);
+            if (i >= 0) {
+                hit = c.termOf(i);
+                break;
+            }
+        }
+        pinned = hit >= 0 ? { term: hit, at: tapAt } : null;
+        tapAt = null;
+    }
+
     let term = chipHover;
+    if (term < 0 && pinned) term = pinned.term;
     if (term < 0 && cursor) {
         for (const c of chains) {
             const i = pickCircle(c.screen, cursor);
@@ -477,11 +522,12 @@ function hover(chains: HoverChain[], note = ''): number[][] {
         }
     }
 
-    const fromCanvas = chipHover < 0 && term >= 0 && cursor !== null;
-    if (fromCanvas && cursor) {
+    const tipAt = pinned && chipHover < 0 ? pinned.at : cursor;
+    const fromCanvas = chipHover < 0 && term >= 0 && tipAt !== null;
+    if (fromCanvas && tipAt) {
         tooltip.show(
             describeTerm(seriesKind(), terms[term], term, terms.length, note),
-            cursor,
+            tipAt,
         );
         canvasTip = true;
     } else if (canvasTip) {
@@ -529,9 +575,13 @@ function draw() {
     hint.hidden = !(mode === 'draw' && !drawing && terms.length === 0);
 
     if (mode === 'wave') {
+        // Portrait phones are narrow: let the circles use more of the width
         const base: Viewport = {
             origin: { x: width * 0.25, y: height / 2 },
-            scale: Math.min(width * 0.12, height * 0.28),
+            scale:
+                height > width
+                    ? Math.min(width * 0.15, height * 0.2)
+                    : Math.min(width * 0.12, height * 0.28),
         };
         camera.setMaxZoom(zoomLimit(base.scale));
         const view = camera.apply(base);

@@ -50,7 +50,7 @@ canvas {
     display: block;
     width: 100%;
     height: 100%;
-    touch-action: none; /* freehand input later: stop touch scroll/zoom */
+    touch-action: none; /* drag, pinch and drawing are all handled in script */
 }
 
 canvas {
@@ -503,4 +503,118 @@ canvas.grabbing {
     margin: 0;
     accent-color: #c5fb45;
     cursor: pointer;
+}
+
+/* Phones: equation full width along the top with the chips scrolling sideways; controls a sheet along the bottom */
+@media (max-width: 640px) {
+    .equation {
+        top: max(10px, env(safe-area-inset-top));
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        gap: 6px;
+        font-size: 14px;
+    }
+
+    .equation .sym {
+        font-size: 20px;
+    }
+
+    .equation .eq-terms {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        font-size: 15px;
+        padding-bottom: 2px;
+    }
+
+    .equation .chip {
+        white-space: nowrap;
+    }
+
+    .controls {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-height: 60%;
+        border-width: 1px 0 0;
+        border-radius: 12px 12px 0 0;
+        padding-bottom: env(safe-area-inset-bottom);
+        font-size: 14px;
+    }
+
+    .controls-header {
+        padding: 12px 16px;
+        font-size: 12px;
+    }
+
+    .controls-body {
+        gap: 12px;
+        padding: 4px 16px 16px;
+    }
+
+    .slider {
+        grid-template-columns: 56px 1fr 56px;
+    }
+
+    .slider input[type='range'] {
+        height: 28px;
+    }
+
+    .choice button,
+    .action,
+    .textbox button {
+        min-height: 40px;
+        padding: 8px 12px;
+    }
+
+    /* under 16px, iOS zooms the page in when a field gets focus */
+    .slider .value,
+    .select select,
+    .textbox textarea {
+        font-size: 16px;
+    }
+
+    .select select {
+        padding: 8px;
+    }
+
+    .shape-picker .about {
+        max-width: none;
+    }
+
+    .row {
+        flex-wrap: wrap;
+        gap: 10px 16px;
+    }
+
+    /* just above the collapsed sheet; the open sheet covers it */
+    .toolbar {
+        top: auto;
+        right: 12px;
+        bottom: calc(56px + env(safe-area-inset-bottom));
+    }
+
+    .hint {
+        padding: 0 24px;
+        text-align: center;
+    }
+
+    .tooltip {
+        max-width: min(300px, calc(100% - 16px));
+    }
+}
+
+/* Touch: no double-tap zoom on the UI, bigger checkboxes */
+@media (pointer: coarse) {
+    .controls,
+    .toolbar,
+    .equation {
+        touch-action: manipulation;
+    }
+
+    .toggle input {
+        width: 18px;
+        height: 18px;
+    }
 }
