@@ -60,6 +60,15 @@ export interface Button {
     setLabel(label: string): void;
 }
 
+export interface Setter<T> {
+    set(value: T): void;
+}
+
+export interface Panel {
+    body: HTMLElement;
+    setCollapsed(collapsed: boolean): void;
+}
+
 // Hover/focus text for the shared tooltip (ui/tooltip.ts)
 function setTip(el: HTMLElement, tip: string | undefined) {
     if (!tip) return;
@@ -67,13 +76,17 @@ function setTip(el: HTMLElement, tip: string | undefined) {
     el.classList.add('has-tip');
 }
 
-// Returns the body that controls go in; the header collapses it
+// Controls go in the body; the header collapses it. extra sits beside the header (e.g. Learn)
 export function createPanel(
     container: HTMLElement,
     collapsed: boolean,
-): HTMLElement {
+    extra?: HTMLElement,
+): Panel {
     const panel = document.createElement('div');
     panel.className = 'controls';
+
+    const top = document.createElement('div');
+    top.className = 'controls-top';
 
     const header = document.createElement('button');
     header.type = 'button';
@@ -92,9 +105,11 @@ export function createPanel(
     setCollapsed(collapsed);
     header.addEventListener('click', () => setCollapsed(!body.hidden));
 
-    panel.append(header, body);
+    top.append(header);
+    if (extra) top.append(extra);
+    panel.append(top, body);
     container.append(panel);
-    return body;
+    return { body, setCollapsed };
 }
 
 export function addSlider(panel: HTMLElement, opts: SliderOptions): Slider {
@@ -221,7 +236,7 @@ export function addChoice<T extends string>(
 export function addSelect(
     panel: HTMLElement,
     opts: SelectOptions,
-): HTMLElement {
+): Setter<string> {
     const row = document.createElement('div');
     row.className = 'select';
 
@@ -238,7 +253,11 @@ export function addSelect(
 
     row.append(name, select);
     panel.append(row);
-    return row;
+    return {
+        set: (value) => {
+            select.value = value;
+        },
+    };
 }
 
 export function addTextBox(panel: HTMLElement, opts: TextBoxOptions): TextBox {
@@ -270,7 +289,10 @@ export function addTextBox(panel: HTMLElement, opts: TextBoxOptions): TextBox {
     };
 }
 
-export function addToggle(panel: HTMLElement, opts: ToggleOptions): void {
+export function addToggle(
+    panel: HTMLElement,
+    opts: ToggleOptions,
+): Setter<boolean> {
     const row = document.createElement('label');
     row.className = 'toggle';
 
@@ -285,6 +307,11 @@ export function addToggle(panel: HTMLElement, opts: ToggleOptions): void {
 
     row.append(input, name);
     panel.append(row);
+    return {
+        set: (value) => {
+            input.checked = value;
+        },
+    };
 }
 
 export function addButton(

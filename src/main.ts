@@ -13,6 +13,7 @@ import {
     addButton,
     addSelect,
 } from './controls';
+import { createLearn } from './learn';
 import { createTooltip } from './ui/tooltip';
 import { createEquation, describeTerm, type SeriesKind } from './ui/equation';
 import { squareWave } from './math/series';
@@ -47,6 +48,7 @@ const ZOOM_MAX_LIMIT = 200;
 const TAP_PICK_PX = 16;
 const TAP_MOVE_PX = 8;
 const touchFirst = matchMedia('(pointer: coarse)').matches;
+const narrow = matchMedia('(max-width: 640px)');
 const EXAMPLE_SVG =
     'M 20 50 C 40 20 75 20 90 50 C 75 80 40 80 20 50 L 5 35 L 8 50 L 5 65 Z';
 
@@ -65,6 +67,7 @@ const TIPS = {
     circles: 'Show the circles, or just the arm joining their centres.',
     play: 'Pause or play the cycle (Space).',
     reset: 'Back to the normal view. Double-click (or double-tap) the drawing does the same.',
+    learn: 'What am I looking at? A short tour, one idea per card (L).',
     pen: 'Drag to draw a new closed shape; it replaces the current one (D).',
     hand: 'Drag to pan without drawing (H). Right- or middle-drag always pans.',
 };
@@ -173,8 +176,19 @@ function traceSamples(): number {
     return Math.max(MIN_TRACE_SAMPLES, 4 * maxFreq);
 }
 
-function shapeView(): Viewport {
+// The drawing keeps clear of an open lesson card: beside it on wide screens, above it on phones
+function room(): { width: number; height: number } {
     const { width, height } = stage;
+    if (!learn.open) return { width, height };
+    const card = learn.panel.getBoundingClientRect();
+    const box = stage.canvas.getBoundingClientRect();
+    return narrow.matches
+        ? { width, height: Math.max(height * 0.4, card.top - box.top) }
+        : { width: Math.max(width * 0.5, card.left - box.left), height };
+}
+
+function shapeView(): Viewport {
+    const { width, height } = room();
     return {
         origin: { x: width / 2, y: height / 2 },
         scale: Math.min(width, height) * 0.35,
@@ -184,7 +198,7 @@ function shapeView(): Viewport {
 // Shape bottom-right, x chain above it, y chain left of it. Sharing an
 // origin x (or y) is what lines each chain's tip up with the pen
 function splitViews(): { shape: Viewport; x: Viewport; y: Viewport } {
-    const { width, height } = stage;
+    const { width, height } = room();
     const scale = Math.min(width, height) / 5.2;
     const gap = 2.6 * scale;
     const cx = width / 2 + 1.35 * scale;
@@ -243,6 +257,15 @@ const setTool = (next: Tool) => {
     app.classList.toggle('drawing', freehand.enabled);
 };
 
+const pickShape = (id: string) => {
+    shapeId = id;
+    shapeTerms.shape = presetTerms(id);
+    showAbout();
+    t = 0;
+    camera.reset();
+    updateTerms();
+};
+
 const setMode = (m: Mode) => {
     mode = m;
     toolbar.hidden = mode !== 'draw';
@@ -255,13 +278,22 @@ const setMode = (m: Mode) => {
     updateTerms();
 };
 
+const learnButton = document.createElement('button');
+learnButton.type = 'button';
+learnButton.className = 'learn-open has-tip';
+learnButton.textContent = 'Learn';
+learnButton.dataset.tip = TIPS.learn;
+learnButton.setAttribute('aria-pressed', 'false');
+learnButton.addEventListener('click', () => learn.toggle());
+
 // Collapsed on phones and short screens, so the drawing gets the room
-const panel = createPanel(
+const { body: panel, setCollapsed } = createPanel(
     app,
     matchMedia('(max-height: 560px), (max-width: 640px)').matches,
+    learnButton,
 );
 
-addChoice<Mode>(panel, {
+const modeChoice = addChoice<Mode>(panel, {
     options: [
         { value: 'wave', label: 'Square wave', tip: TIPS.wave },
         { value: 'shape', label: 'Shape', tip: TIPS.shape },
@@ -291,19 +323,12 @@ shapeAbout.className = 'about';
 const showAbout = () => {
     shapeAbout.textContent = SHAPES.find((s) => s.id === shapeId)?.about ?? '';
 };
-addSelect(shapeRow, {
+const shapeSelect = addSelect(shapeRow, {
     label: 'Shape',
     tip: TIPS.picker,
     options: SHAPES.map(({ id, label }) => ({ value: id, label })),
     value: shapeId,
-    onChange: (id) => {
-        shapeId = id;
-        shapeTerms.shape = presetTerms(id);
-        showAbout();
-        t = 0;
-        camera.reset();
-        updateTerms();
-    },
+    onChange: pickShape,
 });
 shapeRow.append(shapeAbout);
 showAbout();
@@ -379,7 +404,7 @@ function setPlaying(p: boolean) {
     playButton.setLabel(playing ? 'Pause' : 'Play');
 }
 
-addToggle(actions, {
+const sortToggle = addToggle(actions, {
     label: 'Sort by size',
     tip: TIPS.sort,
     value: sorted,
@@ -389,7 +414,7 @@ addToggle(actions, {
     },
 });
 
-addToggle(actions, {
+const circlesToggle = addToggle(actions, {
     label: 'Circles',
     tip: TIPS.circles,
     value: showCircles,
@@ -411,6 +436,48 @@ viewRow.append(viewHint);
 
 setMode(mode);
 setPlaying(playing);
+
+// Lessons drive the same controls a person would, so the panel always shows what's on screen
+const learn = createLearn(
+    app,
+    {
+        setMode: (m) => {
+            modeChoice.set(m);
+            setMode(m);
+        },
+        setShape: (id) => {
+            shapeSelect.set(id);
+            pickShape(id);
+        },
+        setTerms: (n) => {
+            const max = mode === 'wave' ? SQUARE_MAX : SHAPE_POINTS;
+            counts[mode] = Math.min(max, Math.max(1, n));
+            slider.set(counts[mode], max);
+            updateTerms();
+        },
+        setLayout: (l) => {
+            layout = l;
+            layoutChoice.set(l);
+        },
+        setSorted: (on) => {
+            sorted = on;
+            sortToggle.set(on);
+            updateTerms();
+        },
+        setCircles: (on) => {
+            showCircles = on;
+            circlesToggle.set(on);
+        },
+        resetView: () => camera.reset(),
+    },
+    (open) => {
+        learnButton.setAttribute('aria-pressed', String(open));
+        app.classList.toggle('learning', open);
+        // phones: the card takes the controls' place
+        if (open && narrow.matches) setCollapsed(true);
+        camera.reset();
+    },
+);
 
 reducedMotion.addEventListener('change', () =>
     setPlaying(!reducedMotion.matches),
@@ -446,7 +513,11 @@ window.addEventListener('keydown', (e) => {
         target.closest('input, textarea, button, select')
     )
         return;
-    if (mode === 'draw' && e.code === 'KeyD') {
+    if (e.code === 'KeyL') {
+        learn.toggle();
+    } else if (e.code === 'Escape' && learn.open) {
+        learn.close();
+    } else if (mode === 'draw' && e.code === 'KeyD') {
         setTool('pen');
     } else if (mode === 'draw' && e.code === 'KeyH') {
         setTool('hand');
@@ -568,8 +639,8 @@ function drawStroke(stroke: Point[]) {
 }
 
 function draw() {
-    const { width, height } = stage;
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, stage.width, stage.height);
+    const { width, height } = room();
 
     const drawing = freehand.stroke.length > 0;
     hint.hidden = !(mode === 'draw' && !drawing && terms.length === 0);
@@ -655,6 +726,9 @@ const loop = createLoop((dt) => {
     draw();
 });
 loop.start();
+
+// First visit on a big screen: start with the tour
+if (!narrow.matches) learn.toggle();
 
 // Embedded on the site: no work while scrolled out of view
 new IntersectionObserver(([entry]) => {

@@ -618,3 +618,221 @@ canvas.grabbing {
         height: 18px;
     }
 }
+
+/* Controls header row: the collapse toggle, then Learn */
+.controls-top {
+    display: flex;
+    align-items: center;
+}
+
+.controls-top .controls-header {
+    flex: 1;
+}
+
+.learn-open {
+    margin-right: 10px;
+    padding: 4px 10px;
+    border: 1px solid #c5fb45;
+    border-radius: 5px;
+    background: transparent;
+    color: #c5fb45;
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.learn-open:hover {
+    background: rgba(197, 251, 69, 0.1);
+}
+
+.learn-open[aria-pressed='true'] {
+    background: #c5fb45;
+    color: #0a0a0a;
+}
+
+/* Lesson card: top right, the drawing shifts left to make room (main.ts room()) */
+.learn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(360px, calc(100% - 32px));
+    max-height: calc(100% - 32px);
+    padding: 14px 16px;
+    border: 1px solid #222;
+    border-radius: 8px;
+    background: rgba(10, 10, 10, 0.92);
+    font-size: 13px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.learn[hidden] {
+    display: none;
+}
+
+.learn-head,
+.learn-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.learn-count {
+    color: #666;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+}
+
+.learn-title {
+    margin: 0;
+    color: #c5fb45;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+}
+
+.learn-body {
+    min-height: 0;
+    overflow-y: auto;
+    color: #bbb;
+    line-height: 1.55;
+    overscroll-behavior: contain;
+}
+
+.learn-body p {
+    margin: 0 0 0.7em;
+}
+
+.learn-body math {
+    margin: 0.4em 0 0.9em;
+    color: #e5e5e5;
+    font-family: 'STIX Two Text', 'Cambria Math', Georgia, serif;
+    font-size: 1.15em;
+}
+
+.learn-try {
+    margin: 0;
+    color: #c5fb45;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
+
+.learn-try[hidden] {
+    display: none;
+}
+
+.learn-btn {
+    padding: 5px 10px;
+    border: 1px solid #333;
+    border-radius: 5px;
+    background: transparent;
+    color: #ccc;
+    font: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.learn-btn:hover {
+    border-color: #555;
+    color: #e5e5e5;
+}
+
+.learn-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.learn-btn-primary {
+    border-color: #c5fb45;
+    color: #c5fb45;
+}
+
+.learn-btn-primary:hover {
+    border-color: #c5fb45;
+    color: #c5fb45;
+    background: rgba(197, 251, 69, 0.1);
+}
+
+.learn-dots {
+    display: flex;
+}
+
+.learn-dot {
+    position: relative;
+    width: 14px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+
+.learn-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin: -2.5px 0 0 -2.5px;
+    border-radius: 50%;
+    background: #444;
+    transition:
+        background 0.2s,
+        transform 0.2s;
+}
+
+.learn-dot:hover::before {
+    background: #888;
+}
+
+.learn-dot[aria-current='true']::before {
+    background: #c5fb45;
+    transform: scale(1.4);
+}
+
+/* the equation stops short of the card */
+.learning .equation {
+    max-width: calc(100% - 420px);
+}
+
+/* Phones: the card is a sheet above the controls header */
+@media (max-width: 640px) {
+    .learn {
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: calc(45px + env(safe-area-inset-bottom));
+        width: auto;
+        max-height: 50%;
+        border-width: 1px 0 0;
+        border-radius: 12px 12px 0 0;
+        font-size: 14px;
+    }
+
+    .learning .equation {
+        max-width: none;
+    }
+
+    .learn-open {
+        margin-right: 12px;
+        padding: 6px 12px;
+    }
+
+    .learn-btn {
+        padding: 8px 12px;
+    }
+
+    .learn-dot {
+        width: 16px;
+        height: 36px;
+    }
+}
